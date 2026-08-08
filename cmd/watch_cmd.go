@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/kakeetopius/flix/internal/tmdb"
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 )
 
@@ -22,11 +24,37 @@ func WatchCommand() *cobra.Command {
 		Use:   "watch",
 		Short: "Find and watch a movie or a tv show episode from your browser.",
 		Long: `Watch a movie or a tv show episode from your browser.
-
+	
 This command automatically finds a link to any movie or tv show episode and opens the link using a broswer on the system for viewing.
 `,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Searching")
+			qtype := tmdb.QueryTypeMovie
+			if isSerie || episode != 0 || season != 0 {
+				qtype = tmdb.QueryTypeSerie
+			}
+			queryOpts := tmdb.QueryOptions{
+				Query: args[0],
+				Year:  releaseYear,
+				Type:  qtype,
+			}
+
+			if trailer {
+				trailerLink, err := tmdb.GetTrailerLink(queryOpts)
+				if err != nil {
+					return err
+				}
+				fmt.Println("Trailer opened in browser")
+				fmt.Println("Link : ", trailerLink)
+				browser.OpenURL(trailerLink)
+				return nil
+			}
+
+			id, err := tmdb.GetID(queryOpts)
+			if err != nil {
+				return err
+			}
+			fmt.Println("ID is", id)
 			return nil
 		},
 	}
