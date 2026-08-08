@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kakeetopius/flix/internal/feature"
 	"github.com/kakeetopius/net-tools/pkg/httpclient"
 )
 
@@ -19,30 +20,12 @@ const (
 	serieSearchPath = "/tv"
 )
 
-type QueryType int
-
-const (
-	QueryTypeMovie QueryType = iota
-	QueryTypeSerie
-)
-
-func (t QueryType) String() string {
-	switch t {
-	case QueryTypeMovie:
-		return "movie"
-	case QueryTypeSerie:
-		return "serie"
-	default:
-		return ""
-	}
-}
-
 // searchPath returns the `themoviedb.org` search path for the query type.
-func (t QueryType) searchPath() string {
-	switch t {
-	case QueryTypeMovie:
+func searchPathOf(fType feature.Type) string {
+	switch fType {
+	case feature.FeatureTypeMovie:
 		return movieSearchPath
-	case QueryTypeSerie:
+	case feature.FeatureTypeSerie:
 		return serieSearchPath
 	default:
 		return ""
@@ -50,9 +33,9 @@ func (t QueryType) searchPath() string {
 }
 
 type QueryOptions struct {
-	Query string    `url:"query"`
-	Type  QueryType `url:"-"`
-	Year  int       `url:"-"`
+	Query string       `url:"query"`
+	Type  feature.Type `url:"-"`
+	Year  int          `url:"-"`
 }
 
 // GetID accepts a query and returns the tmdb id of the first result of the search. The query can be a movie or a tv show.
@@ -95,7 +78,7 @@ func getSearchResultsPage(query QueryOptions) (*goquery.Document, error) {
 		query.Query = fmt.Sprintf("%v y:%v", query.Query, query.Year)
 	}
 
-	resp, err := client.Get(ctx, query.Type.searchPath(), query)
+	resp, err := client.Get(ctx, searchPathOf(query.Type), query)
 	if err != nil {
 		return nil, err
 	}
@@ -164,9 +147,9 @@ func getWatchLinkOfSite(site string, id string) (string, error) {
 }
 
 // getFirstResult accepts a search results page from themoviedb.org and returns the first result of the search. The query can be a movie or a tv show.
-func getFirstResult(doc *goquery.Document, qtype QueryType) (*goquery.Selection, error) {
+func getFirstResult(doc *goquery.Document, qtype feature.Type) (*goquery.Selection, error) {
 	divID := "#movie_results"
-	if qtype == QueryTypeSerie {
+	if qtype == feature.FeatureTypeSerie {
 		divID = "#tv_results"
 	}
 
@@ -195,8 +178,8 @@ func getFeaturePagePathFromResult(result *goquery.Selection) (string, error) {
 }
 
 // getFeaturePagePath accepts a tmdb id and a query type and returns the path to the feature page of the feature on themoviedb.org. The feature can be a movie or a tv show.
-func getFeaturePagePath(tmdbID int, qtype QueryType) string {
-	return fmt.Sprintf("%v/%v", qtype.searchPath(), tmdbID)
+func getFeaturePagePath(tmdbID int, qtype feature.Type) string {
+	return fmt.Sprintf("%v/%v", searchPathOf(qtype), tmdbID)
 }
 
 // getIDFromFeaturePath accepts a feature path and returns the tmdb id of the feature. The feature can be a movie or a tv show.

@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/kakeetopius/flix/internal/feature"
 	"github.com/kakeetopius/flix/internal/tmdb"
+	watchproviders "github.com/kakeetopius/flix/internal/watch_providers"
+	"github.com/kakeetopius/flix/internal/watch_providers/vidsrc"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 )
@@ -29,32 +33,44 @@ This command automatically finds a link to any movie or tv show episode and open
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			qtype := tmdb.QueryTypeMovie
+			qtype := feature.FeatureTypeMovie
 			if isSerie || episode != 0 || season != 0 {
-				qtype = tmdb.QueryTypeSerie
+				qtype = feature.FeatureTypeSerie
 			}
-			queryOpts := tmdb.QueryOptions{
+			tmdbOpts := tmdb.QueryOptions{
 				Query: args[0],
 				Year:  releaseYear,
 				Type:  qtype,
 			}
 
 			if trailer {
-				trailerLink, err := tmdb.GetTrailerLink(queryOpts)
+				trailerLink, err := tmdb.GetTrailerLink(tmdbOpts)
 				if err != nil {
 					return err
 				}
-				fmt.Println("Trailer opened in browser")
-				fmt.Println("Link : ", trailerLink)
 				browser.OpenURL(trailerLink)
+				fmt.Println("Trailer opened in browser")
+				fmt.Println("Link: ", trailerLink)
 				return nil
 			}
 
-			id, err := tmdb.GetID(queryOpts)
+			queryOpts := watchproviders.SearchOptions{
+				Query:   args[0],
+				Year:    releaseYear,
+				Type:    qtype,
+				Season:  season,
+				Episode: episode,
+			}
+
+			link, err := vidsrc.NewWatchProvider().Search(context.Background(), queryOpts)
 			if err != nil {
 				return err
 			}
-			fmt.Println("ID is", id)
+
+			browser.OpenURL(string(link))
+			fmt.Println("Video opened in browser")
+			fmt.Println("Link: ", link)
+
 			return nil
 		},
 	}
